@@ -131,3 +131,33 @@ func ExampleWritePrimitiveAttributes() {
 		panic(err)
 	}
 }
+
+func ExampleGenerateNormals() {
+	doc := gltf.NewDocument()
+	positionAccessor := modeler.WritePosition(doc, [][3]float32{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}})
+	indicesAccessor := modeler.WriteIndices(doc, []uint16{0, 1, 2})
+	doc.Meshes = []*gltf.Mesh{{
+		Name: "Triangle",
+		Primitives: []*gltf.Primitive{
+			{
+				Indices: gltf.Index(indicesAccessor),
+				Attributes: gltf.PrimitiveAttributes{
+					gltf.POSITION: positionAccessor,
+				},
+			},
+		},
+	}}
+
+	// Counter-clockwise in the XY plane gives a +Z normal for every vertex.
+	out, normalAccessor, err := modeler.GenerateNormals(doc, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	normals, err := modeler.ReadNormal(out, out.Accessors[normalAccessor], nil)
+	if err != nil {
+		panic(err)
+	}
+	_ = normals
+	// The original document keeps its attributes unchanged.
+	_ = doc.Meshes[0].Primitives[0].Attributes
+}

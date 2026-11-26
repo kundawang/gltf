@@ -128,6 +128,33 @@ doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, 0)
 gltf.Save(doc, "./test.gltf")
 ```
 
+### Generating smooth normals
+
+Low-poly assets often store only `POSITION` and indices, but lit previews need
+vertex normals to shade them. [GenerateNormals](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#GenerateNormals)
+returns a copy of the document whose selected `TRIANGLES` primitive has a new
+`NORMAL` accessor with area-weighted smooth vertex normals. The input document
+is left untouched; positions, indices, UVs, materials and every other primitive
+are preserved:
+
+```go
+out, normalAccessor, err := modeler.GenerateNormals(doc, 0, 0) // mesh 0, primitive 0
+if err != nil {
+    panic(err)
+}
+_ = normalAccessor
+gltf.SaveBinary(out, "./with-normals.glb")
+```
+
+Vertices shared through the index buffer accumulate the unnormalized face
+vectors, so a counter-clockwise triangle in the XY plane yields a unit `+Z`
+normal and larger neighbouring triangles weigh more. Degenerate triangles are
+skipped; an existing `NORMAL` attribute is an error unless
+`modeler.OverwriteNormals()` is passed. Sparse and interleaved positions are
+read through the regular accessor helpers. If you already have raw vertex data,
+[ComputeSmoothNormals](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#ComputeSmoothNormals)
+exposes the same calculation directly.
+
 ### Data interleaving
 
 The data of the attributes that are stored in a single bufferView may be stored as an Array-Of-Structures, which may produce a rendering perfomance boost in static attributes. `qmuntal/gltf/modeler` facilitates the creation of interleaved accessors and buffer views with the methods [WritePrimitiveAttributes](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#WritePrimitiveAttributes), [WriteAccessorsInterleaved](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#WriteAccessorsInterleaved), and [WriteBufferViewInterleaved](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#WriteBufferViewInterleaved) being the first one the most recommended for creating mesh primitives:
