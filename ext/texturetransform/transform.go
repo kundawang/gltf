@@ -3,6 +3,8 @@ package texturetransform
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"math"
 
 	"github.com/qmuntal/gltf"
 )
@@ -43,6 +45,40 @@ type TextureTransform = TextureTranform
 // ScaleOrDefault returns the node scale if it represents a valid scale factor, else return the default one.
 func (t *TextureTranform) ScaleOrDefault() [2]float64 {
 	return t.Scale
+}
+
+// ErrNonFinite is returned when a texture transform contains a non-finite
+// (NaN or +-Inf) offset, rotation or scale.
+var ErrNonFinite = errors.New("texturetransform: offset, rotation and scale must be finite")
+
+// Apply returns the texture coordinate uv transformed with t following the
+// KHR_texture_transform specification:
+//
+//	uv'(u, v) = offset + R(rotation) * (scale * (u, v))
+//
+// where R(rotation) is the 2x2 counter-clockwise rotation matrix
+// [[cos, -sin], [sin, cos]].
+//
+// Apply does not mutate uv. It returns ErrNonFinite if any of the offset,
+// rotation or scale components is not finite.
+func (t *TextureTranform) Apply(uv [2]float32) ([2]float32, error) {
+	if !isFinite(t.Offset[0]) || !isFinite(t.Offset[1]) ||
+		!isFinite(t.Rotation) ||
+		!isFinite(t.Scale[0]) || !isFinite(t.Scale[1]) {
+		return [2]float32{}, ErrNonFinite
+	}
+	u := float64(uv[0]) * t.Scale[0]
+	v := float64(uv[1]) * t.Scale[1]
+	cos := math.Cos(t.Rotation)
+	sin := math.Sin(t.Rotation)
+	return [2]float32{
+		float32(t.Offset[0] + cos*u - sin*v),
+		float32(t.Offset[1] + sin*u + cos*v),
+	}, nil
+}
+
+func isFinite(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
 // UnmarshalJSON unmarshal the pbr with the correct default values.
