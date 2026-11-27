@@ -150,6 +150,20 @@ doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, 0)
 gltf.Save(doc, "./test.gltf")
 ```
 
+### Simplifying animations
+
+Dense animations that store a LINEAR keyframe on every frame can be reduced with [modeler.SimplifyAnimation](https://pkg.go.dev/github.com/qmuntal/gltf/modeler#SimplifyAnimation). It keeps only the keyframes that are necessary to preserve the interpolated translation, scale and rotation within configurable tolerances (Euclidean distance for translation/scale, angle in radians for rotations, which are slerped as mandated by the spec):
+
+```go
+result, err := modeler.SimplifyAnimation(doc, 0, modeler.AnimationSimplifyOptions{
+    PositionTolerance: 0.01,
+    ScaleTolerance:    0.001,
+    RotationTolerance: 0.001,
+})
+```
+
+The first and last keyframes are always retained, STEP and CUBICSPLINE samplers are left untouched, and the simplified samplers are rewritten into new accessors so the document remains valid and can be encoded again.
+
 ### Manipulating bytes
 
 The package [gltf/binary](https://pkg.go.dev/github.com/qmuntal/gltf/binary) defines a friendly and efficient API to read and write bytes from buffers, abstracting away all the byte manipulation work. This package is very low level and normal users should use `gltf/modeler` instead as it provides another level of abstraction that understands how bytes are associated to other entities.

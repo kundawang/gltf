@@ -2,6 +2,7 @@ package modeler_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 
 	"github.com/qmuntal/gltf"
@@ -130,4 +131,34 @@ func ExampleWritePrimitiveAttributes() {
 	if err := gltf.SaveBinary(doc, "./example.glb"); err != nil {
 		panic(err)
 	}
+}
+
+func ExampleSimplifyAnimation() {
+	doc := gltf.NewDocument()
+	times := []float32{0, 1, 2}
+	// The middle keyframe lies exactly on the line between the endpoints.
+	translation := [][3]float32{{0, 0, 0}, {1, 0, 0}, {2, 0, 0}}
+	input := modeler.WriteAccessor(doc, gltf.TargetNone, times)
+	output := modeler.WriteAccessor(doc, gltf.TargetNone, translation)
+	sampler := &gltf.AnimationSampler{
+		Input:         input,
+		Output:        output,
+		Interpolation: gltf.InterpolationLinear,
+	}
+	doc.Animations = []*gltf.Animation{{
+		Samplers: []*gltf.AnimationSampler{sampler},
+		Channels: []*gltf.AnimationChannel{{
+			Sampler: 0,
+			Target:  gltf.AnimationChannelTarget{Node: gltf.Index(0), Path: gltf.TRSTranslation},
+		}},
+	}}
+
+	// Zero tolerance only drops keyframes whose value is exactly the linear
+	// interpolation of the adjacent retained keyframes.
+	result, err := modeler.SimplifyAnimation(doc, 0, modeler.AnimationSimplifyOptions{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("removed keyframes:", result.KeyframesRemoved)
+	// Output: removed keyframes: 1
 }
