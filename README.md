@@ -182,6 +182,27 @@ func main() {
 
 It is not necessary to call `gltf.RegisterExtension` for built-in extensions, as these auto-register themselves when the package is initialized.
 
+#### World-space lights
+
+`KHR_lights_punctual` stores lights in node-local space. To get the world-space position and direction of every light in a scene, with the glTF defaults (white color, intensity 1, infinite range, `Pi/4` outer cone) already applied, use [lightspunctual.ReadSceneLights](https://pkg.go.dev/github.com/qmuntal/gltf/ext/lightspunctual#ReadSceneLights):
+
+```go
+import (
+  "github.com/qmuntal/gltf/ext/lightspunctual"
+  "github.com/qmuntal/gltf/modeler"
+)
+
+lights, _ := modeler.ReadSceneLights(doc, doc.Scenes[*doc.Scene])
+for _, l := range lights {
+    // l.Position and l.Direction are in world space.
+    // l.Direction is the node's local -Z rotated by the hierarchy, and is
+    // the zero vector for point lights. Non-uniform scale never skews it.
+    fmt.Println(l.Type, l.Position, l.Direction, l.Color, l.Intensity, l.Range)
+}
+```
+
+The query walks the node hierarchy of the given scene, follows each node's `KHR_lights_punctual` reference, and never modifies the document. Malformed documents produce a descriptive error that names the offending node and light.
+
 #### External extension
 
 This list is the list of known extensions implemented in other modules:
